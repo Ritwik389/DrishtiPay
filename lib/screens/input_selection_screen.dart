@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 import '../providers/accessibility_provider.dart';
+import '../services/app_speech_recognizer.dart';
 import '../widgets/accessible_layout.dart';
 
 class InputSelectionScreen extends ConsumerStatefulWidget {
@@ -13,9 +13,10 @@ class InputSelectionScreen extends ConsumerStatefulWidget {
 }
 
 class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
-  final SpeechToText _stt = SpeechToText();
+  final AppSpeechRecognizer _speechRecognizer = AppSpeechRecognizer();
   bool _speechEnabled = false;
   bool _showPaymentOptions = false;
+  bool _isListening = false;
 
   @override
   void initState() {
@@ -25,9 +26,16 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
 
   void _initAndStartVoice() async {
     try {
-      _speechEnabled = await _stt.initialize(
+      _speechEnabled = await _speechRecognizer.initialize(
         onError: (error) => debugPrint("STT Error: $error"),
-        onStatus: (status) => debugPrint("STT Status: $status"),
+        onStatus: (status) {
+          debugPrint("STT Status: $status");
+          if (mounted) {
+            setState(() {
+              _isListening = status == 'listening';
+            });
+          }
+        },
       );
     } catch (e) {
       debugPrint("STT Initialization Exception: $e");
@@ -49,10 +57,15 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
   }
 
   void _startListening() async {
-    await _stt.listen(
-      onResult: (result) {
-        if (result.finalResult) {
-          _handleVoiceInput(result.recognizedWords.toLowerCase());
+    await _speechRecognizer.listen(
+      onResult: (text, isFinal) {
+        if (mounted) {
+          setState(() {
+            _isListening = true;
+          });
+        }
+        if (isFinal) {
+          _handleVoiceInput(text.toLowerCase());
         }
       },
       listenFor: const Duration(seconds: 5),
@@ -90,7 +103,7 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _buildGiantSection("QR SCANNER", Colors.yellow, () => Navigator.pushNamed(context, '/scanner')),
-            _buildGiantSection("UPI ID VOICE", Colors.white, () => Navigator.pushNamed(context, '/amount')),
+            _buildGiantSection("UPI ID VOICE", Colors.white, () => Navigator.pushNamed(context, '/upi')),
             if (_showPaymentOptions)
               Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -120,7 +133,7 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
                   ],
                 ),
               ),
-            if (_stt.isListening)
+            if (_isListening)
               const Padding(
                 padding: EdgeInsets.all(20.0),
                 child: Icon(Icons.mic, color: Colors.yellow, size: 80),
@@ -167,5 +180,11 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _speechRecognizer.dispose();
+    super.dispose();
   }
 }

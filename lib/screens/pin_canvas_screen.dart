@@ -166,7 +166,10 @@ class _PinCanvasScreenState extends ConsumerState<PinCanvasScreen> {
                   width: double.infinity,
                   margin: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.yellow.withOpacity(0.3), width: 2),
+                    border: Border.all(
+                      color: Colors.yellow.withValues(alpha: 0.3),
+                      width: 2,
+                    ),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: ClipRRect(

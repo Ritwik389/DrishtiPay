@@ -37,19 +37,19 @@ class AccessibilityManager extends Notifier<bool> {
   }
 
   Future<void> vibrateShort() async {
-    if (await Vibration.hasVibrator() ?? false) {
+    if (await Vibration.hasVibrator()) {
       Vibration.vibrate(duration: 100);
     }
   }
 
   Future<void> vibrateLong() async {
-    if (await Vibration.hasVibrator() ?? false) {
+    if (await Vibration.hasVibrator()) {
       Vibration.vibrate(duration: 500);
     }
   }
 
   Future<void> vibratePulse() async {
-    if (await Vibration.hasVibrator() ?? false) {
+    if (await Vibration.hasVibrator()) {
       Vibration.vibrate(pattern: [500, 500], repeat: 1);
     }
   }

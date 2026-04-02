@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 import '../providers/accessibility_provider.dart';
+import '../services/app_speech_recognizer.dart';
 import '../widgets/accessible_layout.dart';
 
 class VoiceAmountScreen extends ConsumerStatefulWidget {
@@ -14,7 +13,7 @@ class VoiceAmountScreen extends ConsumerStatefulWidget {
 }
 
 class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
-  final SpeechToText _stt = SpeechToText();
+  final AppSpeechRecognizer _speechRecognizer = AppSpeechRecognizer();
   bool _speechEnabled = false;
   String _lastWords = '';
   bool _isListening = false;
@@ -26,7 +25,7 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
   }
 
   void _initSpeech() async {
-    _speechEnabled = await _stt.initialize(
+    _speechEnabled = await _speechRecognizer.initialize(
       onError: (error) {
         debugPrint("STT Error: $error");
       },
@@ -51,7 +50,7 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
   void _startListening() async {
     if (!_speechEnabled) return;
 
-    await _stt.listen(
+    await _speechRecognizer.listen(
       onResult: _onSpeechResult,
       listenFor: const Duration(seconds: 10),
       pauseFor: const Duration(seconds: 3),
@@ -71,12 +70,12 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
     }
   }
 
-  void _onSpeechResult(SpeechRecognitionResult result) {
+  void _onSpeechResult(String text, bool isFinal) {
     setState(() {
-      _lastWords = result.recognizedWords;
+      _lastWords = text;
     });
 
-    if (result.finalResult) {
+    if (isFinal) {
       _processAmount(_lastWords);
     }
   }
@@ -149,7 +148,7 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 22,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 letterSpacing: 1.5,
               ),
             ),
@@ -184,5 +183,11 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
     } else {
       _speak("Please enter a valid amount first.");
     }
+  }
+
+  @override
+  void dispose() {
+    _speechRecognizer.dispose();
+    super.dispose();
   }
 }

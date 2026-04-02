@@ -152,7 +152,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             right: 20,
             child: Container(
               padding: const EdgeInsets.all(16),
-              color: Colors.black.withOpacity(0.8),
+              color: Colors.black.withValues(alpha: 0.8),
               child: Text(
                 _guidanceText,
                 textAlign: TextAlign.center,
@@ -176,7 +176,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         child: Text(
           "Camera not available on web.\nUse mobile for full experience.",
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white.withOpacity(0.5)),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
         ),
       ),
     );

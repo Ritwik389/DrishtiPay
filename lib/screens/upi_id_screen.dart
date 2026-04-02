@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 
 import '../providers/accessibility_provider.dart';
+import '../services/app_speech_recognizer.dart';
 import '../widgets/accessible_layout.dart';
 
 class UpiIdScreen extends ConsumerStatefulWidget {
@@ -15,7 +14,7 @@ class UpiIdScreen extends ConsumerStatefulWidget {
 }
 
 class _UpiIdScreenState extends ConsumerState<UpiIdScreen> {
-  final SpeechToText _stt = SpeechToText();
+  final AppSpeechRecognizer _speechRecognizer = AppSpeechRecognizer();
   bool _speechEnabled = false;
   bool _isListening = false;
   String _lastWords = '';
@@ -27,7 +26,7 @@ class _UpiIdScreenState extends ConsumerState<UpiIdScreen> {
   }
 
   Future<void> _initSpeech() async {
-    _speechEnabled = await _stt.initialize(
+    _speechEnabled = await _speechRecognizer.initialize(
       onError: (error) => debugPrint('STT Error: $error'),
       onStatus: (status) {
         if (status == 'done' || status == 'notListening') {
@@ -47,8 +46,8 @@ class _UpiIdScreenState extends ConsumerState<UpiIdScreen> {
 
   void _startListening() async {
     if (!_speechEnabled) return;
-    await _stt.stop(); // reset session for continuous listening
-    await _stt.listen(
+    await _speechRecognizer.stop();
+    await _speechRecognizer.listen(
       onResult: _onSpeechResult,
       listenFor: const Duration(seconds: 10),
       pauseFor: const Duration(seconds: 2),
@@ -64,16 +63,16 @@ class _UpiIdScreenState extends ConsumerState<UpiIdScreen> {
     }
   }
 
-  void _onSpeechResult(SpeechRecognitionResult result) {
-    setState(() => _lastWords = result.recognizedWords);
+  void _onSpeechResult(String text, bool isFinal) {
+    setState(() => _lastWords = text);
 
-    if (result.finalResult) {
-      ref.read(upiIdProvider.notifier).state = result.recognizedWords.trim();
+    if (isFinal) {
+      ref.read(upiIdProvider.notifier).state = text.trim();
 
-      if (_saidConfirm(result.recognizedWords)) {
+      if (_saidConfirm(text)) {
         _confirmUpi();
       } else {
-        _speak('You said ${result.recognizedWords}. Say confirm to continue or repeat to change.');
+        _speak('You said $text. Say confirm to continue or repeat to change.');
       }
     }
   }
@@ -90,7 +89,7 @@ class _UpiIdScreenState extends ConsumerState<UpiIdScreen> {
       return;
     }
     _speak('Confirming recipient $upi. Now say the amount.');
-    _stt.stop();
+    _speechRecognizer.stop();
     setState(() => _isListening = false);
     Navigator.pushNamed(context, '/amount');
   }
@@ -123,6 +122,20 @@ class _UpiIdScreenState extends ConsumerState<UpiIdScreen> {
               size: 80,
               color: _isListening ? Colors.green : Colors.grey,
             ),
+            if (_lastWords.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  _lastWords,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _confirmUpi,
@@ -149,7 +162,7 @@ class _UpiIdScreenState extends ConsumerState<UpiIdScreen> {
 
   @override
   void dispose() {
-    _stt.stop();
+    _speechRecognizer.dispose();
     super.dispose();
   }
 }

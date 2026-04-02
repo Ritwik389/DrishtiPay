@@ -40,6 +40,7 @@ dependencies:
   mobile_scanner: ^7.2.0
   vibration: ^3.1.8
   google_mlkit_digital_ink_recognition: ^0.14.2
+  
   google_fonts: ^8.0.2
   signature: ^6.3.0
   google_mlkit_barcode_scanning: ^0.14.2
