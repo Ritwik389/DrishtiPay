@@ -112,13 +112,7 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
     return AccessibleLayout(
       onActivateSpeak:
           "Enter amount using voice. Current amount is $amount rupees.",
-      onSwipeRight: () {
-        if (amount != "0") {
-          Navigator.pushNamed(context, '/pin');
-        } else {
-          _speak("Please enter a valid amount first.");
-        }
-      },
+      onSwipeRight: _confirmAmount,
       onSwipeLeft: () => Navigator.pop(context),
       onDoubleTap: _startListening,
       child: Center(
@@ -167,9 +161,28 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
               onPressed: () => _processAmount("100"),
               child: const Text("Simulate 100 Rupees"),
             ),
+
+            const SizedBox(height: 16),
+
+            // Voice/CTA confirm
+            ElevatedButton.icon(
+              onPressed: _confirmAmount,
+              icon: const Icon(Icons.check),
+              label: const Text("Confirm"),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  void _confirmAmount() {
+    final amount = ref.read(amountProvider);
+    if (amount != "0") {
+      _speak("Confirming payment of $amount rupees.");
+      Navigator.pushNamed(context, '/pin');
+    } else {
+      _speak("Please enter a valid amount first.");
+    }
   }
 }

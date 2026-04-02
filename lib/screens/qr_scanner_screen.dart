@@ -47,7 +47,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     final barcode = barcodes.first;
     final corners = barcode.corners;
 
-    if (corners == null || corners.isEmpty) return;
+    if (corners.isEmpty) return;
 
     _processAlignment(corners);
   }

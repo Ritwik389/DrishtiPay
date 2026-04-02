@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Ink;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_mlkit_digital_ink_recognition/google_mlkit_digital_ink_recognition.dart';
+import 'package:google_mlkit_digital_ink_recognition/google_mlkit_digital_ink_recognition.dart' as mlkit;
 import 'package:signature/signature.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/accessible_layout.dart';
@@ -21,15 +21,16 @@ class _PinCanvasScreenState extends ConsumerState<PinCanvasScreen> {
     exportBackgroundColor: Colors.black,
   );
 
-  final DigitalInkRecognizer _recognizer = DigitalInkRecognizer(languageCode: 'en-US');
-  final Ink _ink = Ink();
-  List<Point> _points = [];
+  late final mlkit.DigitalInkRecognizer _recognizer;
+  final mlkit.Ink _ink = mlkit.Ink();
+  final List<String> _enteredDigits = [];
   int _digitCount = 0;
   bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
+    _recognizer = mlkit.DigitalInkRecognizer(languageCode: 'en-US');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(accessibilityProvider.notifier).speak("Draw 4 digits of your PIN one by one on the screen.");
     });
@@ -40,18 +41,57 @@ class _PinCanvasScreenState extends ConsumerState<PinCanvasScreen> {
     // Controller listener for real-time visual updates if needed
   }
 
+  void _onPointerDown(PointerDownEvent event) {
+    if (_digitCount >= 4 || _isProcessing) return;
+    _ink.strokes.add(mlkit.Stroke());
+    _addPoint(event.localPosition, event.timeStamp);
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_digitCount >= 4 || _isProcessing) return;
+    _addPoint(event.localPosition, event.timeStamp);
+  }
+
+  void _addPoint(Offset localPosition, Duration timeStamp) {
+    _ink.strokes.last.points.add(mlkit.StrokePoint(
+      x: localPosition.dx,
+      y: localPosition.dy,
+      t: timeStamp.inMilliseconds,
+    ));
+  }
+
   void _onStrokeEnd() async {
-    if (_controller.isEmpty) return;
-    _digitCount++;
-    ref.read(pinStrokesProvider.notifier).state = _digitCount;
-    ref.read(accessibilityProvider.notifier).vibrateShort();
+    if (_controller.isEmpty || _digitCount >= 4 || _isProcessing) return;
+
+    // Recognize the digit
+    try {
+      final candidates = await _recognizer.recognize(_ink);
+      if (candidates.isNotEmpty) {
+        final digit = candidates.first.text;
+        _enteredDigits.add(digit);
+        // Note: We don't speak the digit for security, just that it was accepted.
+      }
+    } catch (e) {
+      debugPrint("Recognition error: $e");
+    }
+
+    setState(() {
+      _digitCount++;
+      ref.read(pinStrokesProvider.notifier).state = _digitCount;
+    });
+
+    // Immediate haptic feedback so the user knows a digit was captured.
+    await ref.read(accessibilityProvider.notifier).vibrateShort();
 
     if (_digitCount >= 4) {
+      // Print the 4 digits to terminal as requested
+      debugPrint("FULL PIN ENTERED: ${_enteredDigits.join()}");
       _finishPin();
     } else {
       ref.read(accessibilityProvider.notifier).speak("Digit $_digitCount accepted.");
       Future.delayed(const Duration(milliseconds: 200), () {
         _controller.clear();
+        _ink.strokes.clear();
       });
     }
   }
@@ -132,6 +172,8 @@ class _PinCanvasScreenState extends ConsumerState<PinCanvasScreen> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Listener(
+                      onPointerDown: _onPointerDown,
+                      onPointerMove: _onPointerMove,
                       onPointerUp: (_) => _onStrokeEnd(),
                       child: Signature(
                         controller: _controller,

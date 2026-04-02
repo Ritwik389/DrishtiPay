@@ -15,6 +15,7 @@ class InputSelectionScreen extends ConsumerStatefulWidget {
 class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
   final SpeechToText _stt = SpeechToText();
   bool _speechEnabled = false;
+  bool _showPaymentOptions = false;
 
   @override
   void initState() {
@@ -60,14 +61,18 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
   }
 
   void _handleVoiceInput(String input) {
-    if (input.contains("qr") || input.contains("scanner") || input.contains("scan")) {
+    if (input.contains("payment") || input.contains("pay")) {
+      setState(() => _showPaymentOptions = true);
+      ref.read(accessibilityProvider.notifier).speak(
+          "You can pay using QR code or U.P.I. I.D. Say QR or U.P.I., or tap one of the buttons on screen.");
+    } else if (input.contains("qr") || input.contains("scanner") || input.contains("scan")) {
       ref.read(accessibilityProvider.notifier).vibrateShort();
       ref.read(accessibilityProvider.notifier).speak("Opening QR Scanner.");
       Navigator.pushNamed(context, '/scanner');
     } else if (input.contains("upi") || input.contains("id") || input.contains("voice")) {
       ref.read(accessibilityProvider.notifier).vibrateShort();
       ref.read(accessibilityProvider.notifier).speak("Opening voice input for U.P.I. I.D.");
-      Navigator.pushNamed(context, '/amount');
+      Navigator.pushNamed(context, '/upi');
     } else {
       ref.read(accessibilityProvider.notifier).speak("I didn't catch that. Please say Q.R. or U.P.I. I.D.");
       _startListening();
@@ -86,6 +91,35 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
           children: [
             _buildGiantSection("QR SCANNER", Colors.yellow, () => Navigator.pushNamed(context, '/scanner')),
             _buildGiantSection("UPI ID VOICE", Colors.white, () => Navigator.pushNamed(context, '/amount')),
+            if (_showPaymentOptions)
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    Text(
+                      "Select payment method",
+                      style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () => _handleVoiceInput("qr"),
+                          icon: const Icon(Icons.qr_code),
+                          label: const Text("QR Code"),
+                        ),
+                        const SizedBox(width: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => _handleVoiceInput("upi id"),
+                          icon: const Icon(Icons.account_balance_wallet_outlined),
+                          label: const Text("UPI ID/Number"),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             if (_stt.isListening)
               const Padding(
                 padding: EdgeInsets.all(20.0),

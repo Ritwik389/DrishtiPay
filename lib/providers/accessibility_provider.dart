@@ -97,6 +97,7 @@ final accessibilityProvider = NotifierProvider<AccessibilityManager, bool>(Acces
 class AmountNotifier extends Notifier<String> {
   @override
   String build() => "0";
+  @override
   set state(String val) => super.state = val;
 }
 final amountProvider = NotifierProvider<AmountNotifier, String>(AmountNotifier.new);
@@ -107,9 +108,18 @@ class MerchantNotifier extends Notifier<String> {
 }
 final merchantNameProvider = NotifierProvider<MerchantNotifier, String>(MerchantNotifier.new);
 
+class UpiIdNotifier extends Notifier<String> {
+  @override
+  String build() => "";
+  @override
+  set state(String val) => super.state = val;
+}
+final upiIdProvider = NotifierProvider<UpiIdNotifier, String>(UpiIdNotifier.new);
+
 class PinStrokeNotifier extends Notifier<int> {
   @override
   int build() => 0;
+  @override
   set state(int val) => super.state = val;
 }
 final pinStrokesProvider = NotifierProvider<PinStrokeNotifier, int>(PinStrokeNotifier.new);
