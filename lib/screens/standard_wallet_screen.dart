@@ -349,6 +349,31 @@ class _StandardWalletScreenState extends ConsumerState<StandardWalletScreen> {
                               ),
                             ),
                           ],
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _activateDrishtiPay,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: paytmDarkBlue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              icon: const Icon(Icons.play_arrow_rounded),
+                              label: Text(
+                                'Open DrishtiPay',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
