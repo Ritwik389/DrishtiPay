@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../providers/accessibility_provider.dart';
+import '../utils/voice_back.dart';
 import '../widgets/accessible_layout.dart';
 
 class VoiceAmountScreen extends ConsumerStatefulWidget {
@@ -18,6 +19,8 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
   bool _speechEnabled = false;
   String _lastWords = '';
   bool _isListening = false;
+  bool _ttsPlaying = false;
+  bool _processingUtterance = false;
 
   @override
   void initState() {
@@ -33,45 +36,53 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
       onStatus: (status) {
         debugPrint("STT Status: $status");
 
-        // Restart listening automatically if stopped
         if (status == "done" || status == "notListening") {
-          _restartListening();
+          if (mounted) setState(() => _isListening = false);
+          if (!_ttsPlaying && mounted) {
+            Future.delayed(const Duration(milliseconds: 400), _restartListening);
+          }
+        } else if (status == "listening") {
+          if (mounted) setState(() => _isListening = true);
         }
       },
     );
 
     if (_speechEnabled) {
-      _speak("Listening for amount. Please say the amount in rupees.");
-      _startListening();
+      await _speakAndResume(
+          "Listening for amount. Please say the amount in rupees. $kVoiceBackHint");
     } else {
-      _speak("Microphone not available. Please allow microphone access.");
+      await ref
+          .read(accessibilityProvider.notifier)
+          .speakAndWait("Microphone not available. Please allow microphone access.");
     }
   }
 
   void _startListening() async {
-    if (!_speechEnabled) return;
+    if (!_speechEnabled || _ttsPlaying) return;
 
     await _stt.listen(
       onResult: _onSpeechResult,
-      listenFor: const Duration(seconds: 10),
-      pauseFor: const Duration(seconds: 3),
+      listenFor: const Duration(seconds: 60),
+      pauseFor: const Duration(seconds: 5),
+      listenMode: ListenMode.dictation,
       localeId: "en_IN",
+      partialResults: true,
     );
 
-    setState(() {
-      _isListening = true;
-    });
-  }
-
-  void _restartListening() {
-    if (!_isListening) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        _startListening();
+    if (mounted) {
+      setState(() {
+        _isListening = true;
       });
     }
   }
 
+  void _restartListening() {
+    if (!_speechEnabled || !mounted || _ttsPlaying) return;
+    _startListening();
+  }
+
   void _onSpeechResult(SpeechRecognitionResult result) {
+    if (!mounted) return;
     setState(() {
       _lastWords = result.recognizedWords;
     });
@@ -81,11 +92,19 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
     }
   }
 
-  void _processAmount(String input) {
-    input = input.toLowerCase();
+  Future<void> _processAmount(String input) async {
+    if (_processingUtterance || _ttsPlaying) return;
+    _processingUtterance = true;
+    try {
+      input = input.toLowerCase();
 
-    // Extract number from speech
-    final regExp = RegExp(r'\d+');
+      if (isVoiceBackCommand(input)) {
+        await _stt.stop();
+        if (mounted) Navigator.pop(context);
+        return;
+      }
+
+      final regExp = RegExp(r'\d+');
     final match = regExp.firstMatch(input);
 
     if (match != null) {
@@ -93,16 +112,24 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
 
       ref.read(amountProvider.notifier).state = amount;
 
-      _speak(
-          "You said $amount rupees. Swipe right to confirm or double tap to change amount.");
+      await _speakAndResume(
+          "You said $amount rupees. Swipe right to confirm, or double tap to say a different amount.");
     } else {
-      _speak("I didn't understand. Please say the amount clearly like 100 or 500.");
-      _restartListening();
+      await _speakAndResume(
+          "I didn't understand. Please say the amount clearly like 100 or 500.");
+    }
+    } finally {
+      if (mounted) _processingUtterance = false;
     }
   }
 
-  void _speak(String text) {
-    ref.read(accessibilityProvider.notifier).speak(text);
+  Future<void> _speakAndResume(String text) async {
+    setState(() => _ttsPlaying = true);
+    await _stt.stop();
+    await ref.read(accessibilityProvider.notifier).speakAndWait(text);
+    if (!mounted) return;
+    setState(() => _ttsPlaying = false);
+    _startListening();
   }
 
   @override
@@ -111,10 +138,14 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
 
     return AccessibleLayout(
       onActivateSpeak:
-          "Enter amount using voice. Current amount is $amount rupees.",
+          "Say the amount in rupees using your voice. Current amount is $amount rupees.",
       onSwipeRight: _confirmAmount,
       onSwipeLeft: () => Navigator.pop(context),
-      onDoubleTap: _startListening,
+      onDoubleTap: () async {
+        if (_ttsPlaying) return;
+        await _stt.stop();
+        _startListening();
+      },
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -176,13 +207,26 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
     );
   }
 
-  void _confirmAmount() {
+  Future<void> _confirmAmount() async {
     final amount = ref.read(amountProvider);
     if (amount != "0") {
-      _speak("Confirming payment of $amount rupees.");
-      Navigator.pushNamed(context, '/pin');
+      setState(() => _ttsPlaying = true);
+      await _stt.stop();
+      await ref
+          .read(accessibilityProvider.notifier)
+          .speakAndWait("Confirming payment of $amount rupees.");
+      if (mounted) {
+        setState(() => _ttsPlaying = false);
+        Navigator.pushNamed(context, '/pin');
+      }
     } else {
-      _speak("Please enter a valid amount first.");
+      await _speakAndResume("Please enter a valid amount first.");
     }
+  }
+
+  @override
+  void dispose() {
+    _stt.stop();
+    super.dispose();
   }
 }

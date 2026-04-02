@@ -25,11 +25,11 @@ class AccessibleLayout extends ConsumerWidget {
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity! < 0) {
-            // Swipe Left -> Back
+          final vx = details.primaryVelocity;
+          if (vx == null) return;
+          if (vx < 0) {
             onSwipeLeft?.call();
-          } else if (details.primaryVelocity! > 0) {
-            // Swipe Right -> Next/Confirm
+          } else if (vx > 0) {
             onSwipeRight?.call();
           }
         },

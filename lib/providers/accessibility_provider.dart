@@ -14,15 +14,12 @@ class AccessibilityManager extends Notifier<bool> {
   @override
   bool build() => false;
 
-  Future<void> speak(String text) async {
-    final tts = ref.read(flutterTtsProvider);
+  Future<void> _applyTtsVoice(FlutterTts tts) async {
     await tts.setLanguage("en-IN");
-    
-    // Try to set a female voice
     try {
       final List<dynamic> voices = await tts.getVoices;
       for (var voice in voices) {
-        if (voice['name'].toString().toLowerCase().contains('female') || 
+        if (voice['name'].toString().toLowerCase().contains('female') ||
             voice['name'].toString().toLowerCase().contains('en-in-x-ahp-local')) {
           await tts.setVoice({"name": voice['name'], "locale": voice['locale']});
           break;
@@ -31,25 +28,40 @@ class AccessibilityManager extends Notifier<bool> {
     } catch (e) {
       debugPrint("Could not set female voice: $e");
     }
+    await tts.setPitch(1.2);
+  }
 
-    await tts.setPitch(1.2); // Slightly higher pitch for female-like voice if default
+  /// Fire-and-forget TTS (does not wait for playback to finish).
+  Future<void> speak(String text) async {
+    final tts = ref.read(flutterTtsProvider);
+    await _applyTtsVoice(tts);
+    await tts.awaitSpeakCompletion(false);
     await tts.speak(text);
   }
 
+  /// Wait until the utterance finishes before starting microphone / next step.
+  Future<void> speakAndWait(String text) async {
+    final tts = ref.read(flutterTtsProvider);
+    await _applyTtsVoice(tts);
+    await tts.awaitSpeakCompletion(true);
+    await tts.speak(text);
+    await tts.awaitSpeakCompletion(false);
+  }
+
   Future<void> vibrateShort() async {
-    if (await Vibration.hasVibrator() ?? false) {
+    if (await Vibration.hasVibrator()) {
       Vibration.vibrate(duration: 100);
     }
   }
 
   Future<void> vibrateLong() async {
-    if (await Vibration.hasVibrator() ?? false) {
+    if (await Vibration.hasVibrator()) {
       Vibration.vibrate(duration: 500);
     }
   }
 
   Future<void> vibratePulse() async {
-    if (await Vibration.hasVibrator() ?? false) {
+    if (await Vibration.hasVibrator()) {
       Vibration.vibrate(pattern: [500, 500], repeat: 1);
     }
   }
@@ -58,13 +70,23 @@ class AccessibilityManager extends Notifier<bool> {
     Vibration.cancel();
   }
 
+  /// Clears amounts / ids from a previous run so a new payment flow does not reuse stale state.
+  void resetPaymentSession() {
+    ref.read(amountProvider.notifier).state = '0';
+    ref.read(upiIdProvider.notifier).state = '';
+    ref.read(merchantNameProvider.notifier).state = 'Sharma Grocery';
+    ref.read(pinStrokesProvider.notifier).state = 0;
+  }
+
   void activateDrishtiPay() {
+    resetPaymentSession();
     state = true;
     speak("DrishtiPay Activated");
   }
 
   void deactivateDrishtiPay() {
     state = false;
+    resetPaymentSession();
   }
 
   Future<bool> checkBiometrics() async {
@@ -105,6 +127,9 @@ final amountProvider = NotifierProvider<AmountNotifier, String>(AmountNotifier.n
 class MerchantNotifier extends Notifier<String> {
   @override
   String build() => "Sharma Grocery";
+
+  @override
+  set state(String val) => super.state = val;
 }
 final merchantNameProvider = NotifierProvider<MerchantNotifier, String>(MerchantNotifier.new);
 

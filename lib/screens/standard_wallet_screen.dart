@@ -56,13 +56,23 @@ class StandardWalletScreen extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.large(
-        onPressed: () {
-          ref.read(accessibilityProvider.notifier).activateDrishtiPay();
-          Navigator.pushNamed(context, '/selection');
-        },
-        backgroundColor: paytmDarkBlue,
-        child: const Icon(Icons.mic, size: 40, color: Colors.white),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: Material(
+        color: paytmDarkBlue,
+        elevation: 6,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () {
+            ref.read(accessibilityProvider.notifier).activateDrishtiPay();
+            Navigator.pushNamed(context, '/selection');
+          },
+          child: const SizedBox(
+            width: 72,
+            height: 72,
+            child: Icon(Icons.mic, size: 40, color: Colors.white),
+          ),
+        ),
       ),
     );
   }

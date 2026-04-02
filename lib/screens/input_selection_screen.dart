@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../providers/accessibility_provider.dart';
+import '../utils/voice_back.dart';
 import '../widgets/accessible_layout.dart';
 
 class InputSelectionScreen extends ConsumerStatefulWidget {
@@ -16,6 +18,8 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
   final SpeechToText _stt = SpeechToText();
   bool _speechEnabled = false;
   bool _showPaymentOptions = false;
+  bool _sessionListening = false;
+  bool _pauseListening = false;
 
   @override
   void initState() {
@@ -27,7 +31,15 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
     try {
       _speechEnabled = await _stt.initialize(
         onError: (error) => debugPrint("STT Error: $error"),
-        onStatus: (status) => debugPrint("STT Status: $status"),
+        onStatus: (status) {
+          debugPrint("STT Status: $status");
+          if (status == 'done' || status == 'notListening') {
+            _sessionListening = false;
+            Future.delayed(const Duration(milliseconds: 400), () {
+              if (mounted && _speechEnabled && !_pauseListening) _startListening();
+            });
+          }
+        },
       );
     } catch (e) {
       debugPrint("STT Initialization Exception: $e");
@@ -35,47 +47,79 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
     }
     
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(accessibilityProvider.notifier).speak(
-          "DrishtiPay active. Do you want to pay using Q.R. or U.P.I. I.D.? Please speak your choice.");
-      
-      if (_speechEnabled) {
-        // Wait for TTS to finish before listening
-        Future.delayed(const Duration(seconds: 4), () => _startListening());
-      } else {
-        ref.read(accessibilityProvider.notifier).speak(
-            "Microphone initialization failed. Please use the buttons on the screen or check browser permissions.");
+      if (!_speechEnabled) {
+        await ref.read(accessibilityProvider.notifier).speak(
+            "Microphone initialization failed. Swipe left to go back, or check microphone permissions in settings. Say QR or U P I when the microphone works.");
+        return;
       }
+      await ref.read(accessibilityProvider.notifier).speakAndWait(
+          "DrishtiPay active. Do you want to pay using Q.R. or U.P.I. I.D.? Please speak your choice. $kVoiceBackHint");
+      if (mounted) _startListening();
     });
   }
 
   void _startListening() async {
-    await _stt.listen(
-      onResult: (result) {
-        if (result.finalResult) {
-          _handleVoiceInput(result.recognizedWords.toLowerCase());
-        }
-      },
-      listenFor: const Duration(seconds: 5),
-      localeId: "en_IN",
-    );
+    if (!_speechEnabled || !mounted || _sessionListening || _pauseListening) return;
+    _sessionListening = true;
+    try {
+      await _stt.listen(
+        onResult: _onSpeechResult,
+        listenFor: const Duration(seconds: 60),
+        pauseFor: const Duration(seconds: 5),
+        listenMode: ListenMode.dictation,
+        localeId: "en_IN",
+        partialResults: true,
+      );
+    } catch (e) {
+      debugPrint('Selection listen error: $e');
+      _sessionListening = false;
+    }
   }
 
-  void _handleVoiceInput(String input) {
+  void _onSpeechResult(SpeechRecognitionResult result) {
+    if (result.finalResult) {
+      _handleVoiceInput(result.recognizedWords.toLowerCase());
+    }
+  }
+
+  Future<void> _handleVoiceInput(String input) async {
+    if (isVoiceBackCommand(input)) {
+      _pauseListening = true;
+      await _stt.stop();
+      if (mounted) Navigator.pop(context);
+      return;
+    }
     if (input.contains("payment") || input.contains("pay")) {
       setState(() => _showPaymentOptions = true);
-      ref.read(accessibilityProvider.notifier).speak(
-          "You can pay using QR code or U.P.I. I.D. Say QR or U.P.I., or tap one of the buttons on screen.");
+      await _stt.stop();
+      await ref.read(accessibilityProvider.notifier).speakAndWait(
+          "You can pay using QR code or U P I I D. Say QR or U P I.");
+      if (mounted) _startListening();
     } else if (input.contains("qr") || input.contains("scanner") || input.contains("scan")) {
+      _pauseListening = true;
+      await _stt.stop();
       ref.read(accessibilityProvider.notifier).vibrateShort();
-      ref.read(accessibilityProvider.notifier).speak("Opening QR Scanner.");
-      Navigator.pushNamed(context, '/scanner');
-    } else if (input.contains("upi") || input.contains("id") || input.contains("voice")) {
-      ref.read(accessibilityProvider.notifier).vibrateShort();
-      ref.read(accessibilityProvider.notifier).speak("Opening voice input for U.P.I. I.D.");
-      Navigator.pushNamed(context, '/upi');
-    } else {
-      ref.read(accessibilityProvider.notifier).speak("I didn't catch that. Please say Q.R. or U.P.I. I.D.");
+      await ref.read(accessibilityProvider.notifier).speakAndWait("Opening QR Scanner.");
+      if (!mounted) return;
+      await Navigator.pushNamed(context, '/scanner');
+      _pauseListening = false;
       _startListening();
+    } else if (input.contains("upi") || input.contains("id") || input.contains("voice")) {
+      _pauseListening = true;
+      await _stt.stop();
+      ref.read(accessibilityProvider.notifier).vibrateShort();
+      await ref.read(accessibilityProvider.notifier).speakAndWait("Opening voice input for U.P.I. I.D.");
+      if (!mounted) return;
+      await Navigator.pushNamed(context, '/upi');
+      _pauseListening = false;
+      _startListening();
+    } else {
+      try {
+        await _stt.stop();
+      } catch (_) {}
+      await ref.read(accessibilityProvider.notifier).speakAndWait(
+          "I didn't catch that. Please say Q.R. or U.P.I. I.D.");
+      if (mounted) _startListening();
     }
   }
 
@@ -89,8 +133,8 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildGiantSection("QR SCANNER", Colors.yellow, () => Navigator.pushNamed(context, '/scanner')),
-            _buildGiantSection("UPI ID VOICE", Colors.white, () => Navigator.pushNamed(context, '/amount')),
+            _buildGiantSection("QR SCANNER", Colors.yellow, () => _openRoutePaused('/scanner')),
+            _buildGiantSection("UPI ID VOICE", Colors.white, () => _openRoutePaused('/upi')),
             if (_showPaymentOptions)
               Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -141,6 +185,22 @@ class _InputSelectionScreenState extends ConsumerState<InputSelectionScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openRoutePaused(String route) async {
+    _pauseListening = true;
+    await _stt.stop();
+    if (!mounted) return;
+    await Navigator.pushNamed(context, route);
+    if (!mounted) return;
+    _pauseListening = false;
+    _startListening();
+  }
+
+  @override
+  void dispose() {
+    _stt.stop();
+    super.dispose();
   }
 
   Widget _buildGiantSection(String text, Color color, VoidCallback onTap) {
