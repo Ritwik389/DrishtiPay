@@ -84,5 +84,4 @@ Ritwik Jain • Ananya Mittal • Aarna Gupta
 
 ---
 
-DrishtiPay bridges the last-mile accessibility gap in UPI.
-EOF
+DrishtiPay bridges the last-mile accessibility gap in UPI
