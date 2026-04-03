@@ -1,4 +1,3 @@
-cat << 'EOF' > README.md
 # DrishtiPay  
 **Voice-First UPI Payments for the Visually Impaired**
 
