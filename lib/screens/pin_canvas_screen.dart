@@ -18,7 +18,7 @@ class PinCanvasScreen extends ConsumerStatefulWidget {
 class _PinCanvasScreenState extends ConsumerState<PinCanvasScreen> {
   final SignatureController _controller = SignatureController(
     penStrokeWidth: 15,
-    penColor: Colors.yellow,
+    penColor: Colors.black,
     exportBackgroundColor: Colors.black,
   );
 
