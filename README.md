@@ -24,7 +24,7 @@ A voice-first accessibility layer that combines:
 ## How to Run the App (from GitHub Repo)
 
 ### 1. Clone the Repository
-git clone https://github.com/<your-username>/DrishtiPay.git  
+git clone https://github.com/Ritwik389/DrishtiPay.git 
 cd DrishtiPay  
 
 ### 2. Install Dependencies
