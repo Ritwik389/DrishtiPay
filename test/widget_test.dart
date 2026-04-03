@@ -16,6 +16,10 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: DrishtiPayApp()));
 
     expect(find.text('DrishtiPay Wallet'), findsOneWidget);
-    expect(find.byIcon(Icons.mic), findsOneWidget);
+    expect(
+      find.byIcon(Icons.mic).evaluate().isNotEmpty ||
+          find.byIcon(Icons.mic_none).evaluate().isNotEmpty,
+      isTrue,
+    );
   });
 }

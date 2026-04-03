@@ -67,8 +67,10 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
       onResult: _onVoice,
       listenFor: const Duration(seconds: 60),
       pauseFor: const Duration(seconds: 5),
-      listenMode: ListenMode.dictation,
       localeId: 'en_IN',
+      listenOptions: SpeechListenOptions(
+        listenMode: ListenMode.dictation,
+      ),
     );
   }
 
@@ -123,7 +125,7 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
@@ -141,7 +143,7 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                   ),
                 ],
@@ -155,7 +157,7 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
               ),
             ),

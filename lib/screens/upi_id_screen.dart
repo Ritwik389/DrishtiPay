@@ -74,9 +74,11 @@ class _UpiIdScreenState extends ConsumerState<UpiIdScreen> {
         onResult: _onSpeechResult,
         listenFor: const Duration(seconds: 60),
         pauseFor: const Duration(seconds: 5),
-        listenMode: ListenMode.dictation,
         localeId: 'en_IN',
-        partialResults: true,
+        listenOptions: SpeechListenOptions(
+          listenMode: ListenMode.dictation,
+          partialResults: true,
+        ),
       );
     } catch (e) {
       debugPrint('listen error: $e');

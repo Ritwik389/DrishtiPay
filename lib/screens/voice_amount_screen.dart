@@ -21,6 +21,7 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
   bool _isListening = false;
   bool _ttsPlaying = false;
   bool _processingUtterance = false;
+  bool _awaitingVoiceConfirmation = false;
 
   @override
   void initState() {
@@ -64,9 +65,11 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
       onResult: _onSpeechResult,
       listenFor: const Duration(seconds: 60),
       pauseFor: const Duration(seconds: 5),
-      listenMode: ListenMode.dictation,
       localeId: "en_IN",
-      partialResults: true,
+      listenOptions: SpeechListenOptions(
+        listenMode: ListenMode.dictation,
+        partialResults: true,
+      ),
     );
 
     if (mounted) {
@@ -104,6 +107,11 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
         return;
       }
 
+      if (_isConfirmIntent(input) && _awaitingVoiceConfirmation) {
+        await _confirmAmount();
+        return;
+      }
+
       final regExp = RegExp(r'\d+');
     final match = regExp.firstMatch(input);
 
@@ -111,10 +119,12 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
       final amount = match.group(0)!;
 
       ref.read(amountProvider.notifier).state = amount;
+      _awaitingVoiceConfirmation = true;
 
       await _speakAndResume(
-          "You said $amount rupees. Swipe right to confirm, or double tap to say a different amount.");
+          "You said $amount rupees. Say confirm payment, swipe right to confirm, or double tap to say a different amount.");
     } else {
+      _awaitingVoiceConfirmation = false;
       await _speakAndResume(
           "I didn't understand. Please say the amount clearly like 100 or 500.");
     }
@@ -180,7 +190,7 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 22,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 letterSpacing: 1.5,
               ),
             ),
@@ -210,6 +220,7 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
   Future<void> _confirmAmount() async {
     final amount = ref.read(amountProvider);
     if (amount != "0") {
+      _awaitingVoiceConfirmation = false;
       setState(() => _ttsPlaying = true);
       await _stt.stop();
       await ref
@@ -222,6 +233,13 @@ class _VoiceAmountScreenState extends ConsumerState<VoiceAmountScreen> {
     } else {
       await _speakAndResume("Please enter a valid amount first.");
     }
+  }
+
+  bool _isConfirmIntent(String input) {
+    return input.contains('confirm') ||
+        input.contains('confirm payment') ||
+        input.contains('yes confirm') ||
+        input.contains('proceed');
   }
 
   @override
