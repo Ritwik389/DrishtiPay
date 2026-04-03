@@ -20,8 +20,14 @@ class AccessibilityManager extends Notifier<bool> {
       final List<dynamic> voices = await tts.getVoices;
       for (var voice in voices) {
         if (voice['name'].toString().toLowerCase().contains('female') ||
-            voice['name'].toString().toLowerCase().contains('en-in-x-ahp-local')) {
-          await tts.setVoice({"name": voice['name'], "locale": voice['locale']});
+            voice['name']
+                .toString()
+                .toLowerCase()
+                .contains('en-in-x-ahp-local')) {
+          await tts.setVoice({
+            "name": voice['name'],
+            "locale": voice['locale']
+          });
           break;
         }
       }
@@ -31,7 +37,6 @@ class AccessibilityManager extends Notifier<bool> {
     await tts.setPitch(1.2);
   }
 
-  /// Fire-and-forget TTS (does not wait for playback to finish).
   Future<void> speak(String text) async {
     final tts = ref.read(flutterTtsProvider);
     await _applyTtsVoice(tts);
@@ -39,13 +44,24 @@ class AccessibilityManager extends Notifier<bool> {
     await tts.speak(text);
   }
 
-  /// Wait until the utterance finishes before starting microphone / next step.
   Future<void> speakAndWait(String text) async {
     final tts = ref.read(flutterTtsProvider);
     await _applyTtsVoice(tts);
     await tts.awaitSpeakCompletion(true);
     await tts.speak(text);
     await tts.awaitSpeakCompletion(false);
+  }
+
+  /// 🔥 FIXED: Now compatible with your QR scanner code
+  Future<void> stop() async {
+    final tts = ref.read(flutterTtsProvider);
+    await tts.stop();
+  }
+
+  /// Existing method (kept for compatibility)
+  Future<void> stopSpeaking() async {
+    final tts = ref.read(flutterTtsProvider);
+    await tts.stop();
   }
 
   Future<void> vibrateShort() async {
@@ -70,7 +86,6 @@ class AccessibilityManager extends Notifier<bool> {
     Vibration.cancel();
   }
 
-  /// Clears amounts / ids from a previous run so a new payment flow does not reuse stale state.
   void resetPaymentSession() {
     ref.read(amountProvider.notifier).state = '0';
     ref.read(upiIdProvider.notifier).state = '';
@@ -92,9 +107,10 @@ class AccessibilityManager extends Notifier<bool> {
   Future<bool> checkBiometrics() async {
     final LocalAuthentication auth = LocalAuthentication();
     try {
-      final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
-      final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
-      
+      final bool canAuthenticateWithBiometrics =
+          await auth.canCheckBiometrics;
+      final bool canAuthenticate =
+          canAuthenticateWithBiometrics || await auth.isDeviceSupported();
       if (canAuthenticate) {
         return await auth.authenticate(
           localizedReason: 'Please authenticate to complete the payment',
@@ -107,14 +123,16 @@ class AccessibilityManager extends Notifier<bool> {
   }
 
   String encryptTransaction(String data) {
-    // Basic mock encryption using SHA-256 for integrity and a base64 mask for display
     final bytes = utf8.encode(data);
     final digest = sha256.convert(bytes);
     return base64.encode(utf8.encode("ENC-$digest"));
   }
 }
 
-final accessibilityProvider = NotifierProvider<AccessibilityManager, bool>(AccessibilityManager.new);
+final accessibilityProvider =
+    NotifierProvider<AccessibilityManager, bool>(AccessibilityManager.new);
+
+// ── State providers ──────────────────────────────────────────────────────────
 
 class AmountNotifier extends Notifier<String> {
   @override
@@ -122,16 +140,17 @@ class AmountNotifier extends Notifier<String> {
   @override
   set state(String val) => super.state = val;
 }
-final amountProvider = NotifierProvider<AmountNotifier, String>(AmountNotifier.new);
+final amountProvider =
+    NotifierProvider<AmountNotifier, String>(AmountNotifier.new);
 
 class MerchantNotifier extends Notifier<String> {
   @override
   String build() => "Sharma Grocery";
-
   @override
   set state(String val) => super.state = val;
 }
-final merchantNameProvider = NotifierProvider<MerchantNotifier, String>(MerchantNotifier.new);
+final merchantNameProvider =
+    NotifierProvider<MerchantNotifier, String>(MerchantNotifier.new);
 
 class UpiIdNotifier extends Notifier<String> {
   @override
@@ -139,7 +158,8 @@ class UpiIdNotifier extends Notifier<String> {
   @override
   set state(String val) => super.state = val;
 }
-final upiIdProvider = NotifierProvider<UpiIdNotifier, String>(UpiIdNotifier.new);
+final upiIdProvider =
+    NotifierProvider<UpiIdNotifier, String>(UpiIdNotifier.new);
 
 class PinStrokeNotifier extends Notifier<int> {
   @override
@@ -147,4 +167,5 @@ class PinStrokeNotifier extends Notifier<int> {
   @override
   set state(int val) => super.state = val;
 }
-final pinStrokesProvider = NotifierProvider<PinStrokeNotifier, int>(PinStrokeNotifier.new);
+final pinStrokesProvider =
+    NotifierProvider<PinStrokeNotifier, int>(PinStrokeNotifier.new);

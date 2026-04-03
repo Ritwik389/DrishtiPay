@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'screens/splash_screen.dart';
 import 'screens/standard_wallet_screen.dart';
 import 'screens/input_selection_screen.dart';
 import 'screens/qr_scanner_screen.dart';
@@ -27,7 +28,8 @@ class DrishtiPayApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const StandardWalletScreen(),
+        '/': (context) => const SplashScreen(),        // ← NEW entry point
+        '/home': (context) => const StandardWalletScreen(), // ← was '/'
         '/selection': (context) => const InputSelectionScreen(),
         '/scanner': (context) => const QrScannerScreen(),
         '/upi': (context) => const UpiIdScreen(),

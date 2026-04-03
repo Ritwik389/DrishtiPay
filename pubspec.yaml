@@ -46,6 +46,7 @@ dependencies:
   local_auth: ^3.0.1
   tflite_flutter: ^0.12.1
   crypto: ^3.0.7
+  http: ^1.2.0 
 
 dev_dependencies:
   flutter_test:
